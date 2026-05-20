@@ -1,0 +1,27 @@
+                Internet
+                    |
+                    v
+        ┌─────────────────────────┐
+        │  Application Load       │
+        │  Balancer (ALB)         │
+        └─────────┬────────────── ┘
+                  |
+                  v
+        ┌─────────────────────────┐
+        │ ECS Service (Fargate)   │
+        │  - Task Definition      │
+        │  - Container App        │
+        └─────────┬────────────── ┘
+                  |
+                  v
+        ┌─────────────────────────┐
+        │ ECR (Docker Image Repo) │
+        └─────────────────────────┘
+
+
+Supporting Infra (hidden but required):
+- VPC (2 subnets: public + private)
+- Internet Gateway
+- Route Tables
+- Security Groups
+- IAM Roles (ECS Task Execution Role)
