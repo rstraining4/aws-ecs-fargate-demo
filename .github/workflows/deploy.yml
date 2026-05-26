@@ -86,6 +86,34 @@ jobs:
         run: terraform apply -auto-approve -var="container_image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
         working-directory: terraform
 
+      - name: Get App URL
+        if: ${{ github.event_name == 'push' || github.event.inputs.terraform_action == 'apply' }}
+        run: |
+          echo "Waiting for the ECS service to reach a steady state (this may take a minute)..."
+          aws ecs wait services-stable --cluster ecs-demo-cluster --services ecs-demo-service
+
+          echo "Retrieving the running task ARN..."
+          TASK_ARN=$(aws ecs list-tasks --cluster ecs-demo-cluster --service-name ecs-demo-service --desired-status RUNNING --query 'taskArns[0]' --output text)
+          
+          if [ "$TASK_ARN" != "None" ] && [ -n "$TASK_ARN" ]; then
+            echo "Retrieving Network Interface ID for task..."
+            ENI_ID=$(aws ecs describe-tasks --cluster ecs-demo-cluster --tasks $TASK_ARN --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text)
+            
+            echo "Retrieving Public IP for ENI..."
+            PUBLIC_IP=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID --query 'NetworkInterfaces[0].Association.PublicIp' --output text)
+            
+            echo "=================================================="
+            echo "🎉 APPLICATION DEPLOYED SUCCESSFULLY! 🎉"
+            echo "🔗 Access your app here: http://$PUBLIC_IP:5000"
+            echo "=================================================="
+            
+            # Write to GitHub Step Summary so it shows up nicely on the Actions page
+            echo "### 🚀 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+            echo "**App URL:** [http://$PUBLIC_IP:5000](http://$PUBLIC_IP:5000)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Could not find a running task. Please check the AWS Console."
+          fi
+
       - name: Terraform Destroy
         # Only run if user explicitly selects destroy
         if: ${{ github.event.inputs.terraform_action == 'destroy' }}
