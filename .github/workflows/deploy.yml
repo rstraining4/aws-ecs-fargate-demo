@@ -5,6 +5,17 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      run_build:
+        description: 'Build and push Docker image'
+        type: boolean
+        required: true
+        default: true
+      run_deploy:
+        description: 'Deploy infrastructure with Terraform'
+        type: boolean
+        required: true
+        default: true
 
 jobs:
   deploy:
@@ -31,12 +42,14 @@ jobs:
 
       # Create ECR repo if not exists
       - name: Create ECR repo if it does not exist
+        if: ${{ github.event_name == 'push' || github.event.inputs.run_build == 'true' }}
         run: |
           aws ecr describe-repositories --repository-names demo-app-repo || aws ecr create-repository --repository-name demo-app-repo
 
       # Build and push Docker image
       - name: Build and Push Docker Image
         id: build-image
+        if: ${{ github.event_name == 'push' || github.event.inputs.run_build == 'true' }}
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: demo-app-repo
@@ -44,18 +57,24 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG src/
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       # Deploy using Terraform
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
+        if: ${{ github.event_name == 'push' || github.event.inputs.run_deploy == 'true' }}
         with:
           terraform_version: 1.4.6
 
       - name: Terraform Init
+        if: ${{ github.event_name == 'push' || github.event.inputs.run_deploy == 'true' }}
         run: terraform init
         working-directory: terraform
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve -var="container_image=${{ steps.build-image.outputs.image }}"
+        if: ${{ github.event_name == 'push' || github.event.inputs.run_deploy == 'true' }}
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: demo-app-repo
+          IMAGE_TAG: ${{ github.sha }}
+        run: terraform apply -auto-approve -var="container_image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
         working-directory: terraform
