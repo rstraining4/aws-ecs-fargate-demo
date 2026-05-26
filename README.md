@@ -61,10 +61,6 @@ Feel free to submit issues or pull requests for improvements or bug fixes.
 
 This project is licensed under the MIT License.
 
-# ECS Fargate Demo
-
-This project demonstrates how to deploy a Python application using AWS ECS Fargate. It includes the necessary files and configurations to build, deploy, and manage the application in a cloud environment.
-
 ## Story
 
 My team is working on building a minimal containerized web application deployed on AWS using ECS Fargate. This is our containerized service in a secure and scalable way, and my frontend is used for my finance company. I used Terraform to provision infrastructure as code so that the entire environment is reproducible. 
@@ -122,5 +118,3 @@ This architecture is ideal for interviews because it demonstrates:
 - **Reproducibility**: Terraform ensures the infrastructure can be recreated consistently.
 - **Modern Deployment**: The architecture uses container-based deployment, which is widely adopted in production environments.
 - **Production Realism**: Even though it's minimal, the setup reflects real-world production practices.
-
-## Project Structure

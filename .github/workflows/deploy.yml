@@ -28,13 +28,22 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # Create ECR repo if not exists
+      - name: Create ECR repo if it does not exist
+        run: |
+          aws ecr describe-repositories --repository-names demo-app-repo || aws ecr create-repository --repository-name demo-app-repo
+
       # Build and push Docker image
       - name: Build and Push Docker Image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: demo-app-repo
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          IMAGE_TAG=latest
-          REPOSITORY_URI=${{ secrets.ECR_REPOSITORY_URI }}
-          docker build -t $REPOSITORY_URI:$IMAGE_TAG .
-          docker push $REPOSITORY_URI:$IMAGE_TAG
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG src/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       # Deploy using Terraform
       - name: Set up Terraform
@@ -47,5 +56,5 @@ jobs:
         working-directory: terraform
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -var="container_image=${{ steps.build-image.outputs.image }}"
         working-directory: terraform
