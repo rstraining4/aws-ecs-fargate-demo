@@ -6,16 +6,14 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      run_build:
-        description: 'Build and push Docker image'
-        type: boolean
+      terraform_action:
+        description: 'Terraform Action (Plan or Apply)'
+        type: choice
         required: true
-        default: true
-      run_deploy:
-        description: 'Deploy infrastructure with Terraform'
-        type: boolean
-        required: true
-        default: true
+        default: 'plan'
+        options:
+          - plan
+          - apply
 
 jobs:
   deploy:
@@ -42,14 +40,12 @@ jobs:
 
       # Create ECR repo if not exists
       - name: Create ECR repo if it does not exist
-        if: ${{ github.event_name == 'push' || github.event.inputs.run_build == 'true' }}
         run: |
           aws ecr describe-repositories --repository-names demo-app-repo || aws ecr create-repository --repository-name demo-app-repo
 
       # Build and push Docker image
       - name: Build and Push Docker Image
         id: build-image
-        if: ${{ github.event_name == 'push' || github.event.inputs.run_build == 'true' }}
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: demo-app-repo
@@ -61,17 +57,24 @@ jobs:
       # Deploy using Terraform
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
-        if: ${{ github.event_name == 'push' || github.event.inputs.run_deploy == 'true' }}
         with:
           terraform_version: 1.4.6
 
       - name: Terraform Init
-        if: ${{ github.event_name == 'push' || github.event.inputs.run_deploy == 'true' }}
         run: terraform init
         working-directory: terraform
 
+      - name: Terraform Plan
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: demo-app-repo
+          IMAGE_TAG: ${{ github.sha }}
+        run: terraform plan -var="container_image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+        working-directory: terraform
+
       - name: Terraform Apply
-        if: ${{ github.event_name == 'push' || github.event.inputs.run_deploy == 'true' }}
+        # Run apply if it's a push to main OR if the user manually selected 'apply'
+        if: ${{ github.event_name == 'push' || github.event.inputs.terraform_action == 'apply' }}
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: demo-app-repo
