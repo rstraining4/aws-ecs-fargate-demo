@@ -7,13 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       terraform_action:
-        description: 'Terraform Action (Plan or Apply)'
+        description: 'Terraform Action (Plan, Apply, or Destroy)'
         type: choice
         required: true
         default: 'plan'
         options:
           - plan
           - apply
+          - destroy
 
 jobs:
   deploy:
@@ -38,14 +39,16 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Create ECR repo if not exists
+      # Create ECR repo if not exists (Skip on destroy)
       - name: Create ECR repo if it does not exist
+        if: ${{ github.event.inputs.terraform_action != 'destroy' }}
         run: |
           aws ecr describe-repositories --repository-names demo-app-repo || aws ecr create-repository --repository-name demo-app-repo
 
-      # Build and push Docker image
+      # Build and push Docker image (Skip on destroy)
       - name: Build and Push Docker Image
         id: build-image
+        if: ${{ github.event.inputs.terraform_action != 'destroy' }}
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: demo-app-repo
@@ -65,6 +68,7 @@ jobs:
         working-directory: terraform
 
       - name: Terraform Plan
+        if: ${{ github.event.inputs.terraform_action == 'plan' }}
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: demo-app-repo
@@ -80,4 +84,15 @@ jobs:
           ECR_REPOSITORY: demo-app-repo
           IMAGE_TAG: ${{ github.sha }}
         run: terraform apply -auto-approve -var="container_image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+        working-directory: terraform
+
+      - name: Terraform Destroy
+        # Only run if user explicitly selects destroy
+        if: ${{ github.event.inputs.terraform_action == 'destroy' }}
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: demo-app-repo
+          IMAGE_TAG: ${{ github.sha }}
+        # We still pass the var to satisfy Terraform variable requirements, even though it's destroying
+        run: terraform destroy -auto-approve -var="container_image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
         working-directory: terraform
