@@ -67,20 +67,6 @@ jobs:
         run: terraform init
         working-directory: terraform
 
-      - name: Terraform Import Existing Resources (Workaround for no remote backend)
-        run: |
-          echo "Attempting to import existing resources to prevent idempotency errors..."
-          terraform import aws_ecs_cluster.demo_cluster ecs-demo-cluster || true
-          terraform import aws_ecs_service.demo_service ecs-demo-cluster/ecs-demo-service || true
-          terraform import aws_iam_role.ecs_task_execution_role demo_ecs_task_execution_role || true
-          
-          # Get SG ID by name to import it
-          SG_ID=$(aws ec2 describe-security-groups --filters Name=group-name,Values=ecs_demo_sg --query "SecurityGroups[0].GroupId" --output text || true)
-          if [ "$SG_ID" != "None" ] && [ -n "$SG_ID" ]; then
-            terraform import aws_security_group.ecs_sg $SG_ID || true
-          fi
-        working-directory: terraform
-
       - name: Terraform Plan
         if: ${{ github.event.inputs.terraform_action == 'plan' }}
         env:
