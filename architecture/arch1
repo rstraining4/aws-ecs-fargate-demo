@@ -25,3 +25,4 @@ Supporting Infra (hidden but required):
 - Route Tables
 - Security Groups
 - IAM Roles (ECS Task Execution Role)
+- S3 Bucket (Terraform State Backend)

@@ -20,33 +20,84 @@ ecs-fargate-demo
 └── README.md            # Project documentation
 ```
 
-## Setup Instructions
+## Prerequisites for AWS Deployment
+
+Before deploying this project in a new AWS account, please follow these steps:
+
+1. **Open an AWS Account:**
+   Sign up for an [AWS Free Tier Account](https://aws.amazon.com/free/).
+
+2. **Create an IAM User:**
+   - Go to the **IAM Console** in AWS.
+   - Click **Users** -> **Add users**.
+   - Set a username (e.g., `terraform-admin`).
+   - Give the user **AdministratorAccess** (for demo purposes) or specific policies for ECS, VPC, ECR, S3, etc.
+   - Go to the user's **Security credentials** tab, and create an **Access Key**. Save the **Access Key ID** and **Secret Access Key** securely.
+   - Configure AWS CLI locally using `aws configure` and input the keys.
+
+3. **Create an S3 Bucket for Terraform State:**
+   - Go to the **S3 Console**.
+   - Create a new bucket named `tfstate312` (or adjust the name in your config if this is taken).
+   - Attach the following bucket policy to allow Terraform to manage the state (replacing `arn:aws:s3:::tfstate312` with your bucket ARN if different):
+   ```json
+   {
+       "Version": "2012-10-17",
+       "Statement": [
+           {
+               "Effect": "Allow",
+               "Action": "s3:ListBucket",
+               "Resource": "arn:aws:s3:::tfstate312"
+           },
+           {
+               "Effect": "Allow",
+               "Action": [
+                   "s3:GetObject",
+                   "s3:PutObject",
+                   "s3:DeleteObject"
+               ],
+               "Resource": "arn:aws:s3:::tfstate312/*"
+           }
+       ]
+   }
+   ```
+
+## Setup & Deployment Instructions
 
 1. **Clone the repository:**
-   ```
+   ```bash
    git clone <repository-url>
    cd ecs-fargate-demo
    ```
 
-2. **Install dependencies:**
-   ```
-   pip install -r requirements.txt
-   ```
-
-3. **Build the Docker image:**
-   ```
-   docker build -t ecs-fargate-demo .
+2. **Install dependencies (Local Testing):**
+   ```bash
+   pip install -r src/requirements.txt
    ```
 
-4. **Deploy using Terraform:**
+3. **Deploy using Terraform:**
    - Navigate to the `terraform` directory.
-   - Initialize Terraform:
-     ```
+   - Initialize Terraform (this configures the S3 backend and downloads providers):
+     ```bash
      terraform init
      ```
-   - Apply the configuration:
+   - Review the deployment plan:
+     ```bash
+     terraform plan
      ```
-     terraform apply
+   - Apply the configuration to create the infrastructure:
+     ```bash
+     terraform apply -auto-approve
+     ```
+
+4. **Testing the Webpage:**
+   - Once `terraform apply` completes, it will output the ALB DNS name (e.g., `http://my-alb-xxxx.elb.amazonaws.com`).
+   - Open this URL in your web browser. You should see the Flask web application loading with a big font saying "Hello, ECS Fargate!".
+
+5. **Destroy the Infrastructure:**
+   - To avoid incurring ongoing AWS charges, make sure to tear down the infrastructure once you are done testing.
+   - In the `terraform` directory, run:
+     ```bash
+     terraform destroy -auto-approve
      ```
 
 ## Usage
