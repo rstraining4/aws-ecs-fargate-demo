@@ -83,7 +83,7 @@ resource "aws_ecs_task_definition" "demo_task" {
 
 # IAM Role for ECS Task Execution (needed to pull images from ECR)
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "ecs_task_execution_role"
+  name = "demo_ecs_task_execution_role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
